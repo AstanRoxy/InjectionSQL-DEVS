@@ -1,0 +1,28 @@
+@startuml Architecture DEVS - Défense SQL Injection
+
+title Architecture du modèle DEVS
+
+actor Attacker as A
+component Firewall as F
+database Database as D
+
+A -> F : NORMAL_QUERY / SQL_INJECTION_PAYLOAD
+F -> D : NORMAL_QUERY / BLOCKED
+D -> F : OK / COMPROMISED
+F -> A : (feedback loop possible)
+
+note right of F
+  **Firewall Logic:**
+  - SQL_INJECTION_PAYLOAD → BLOCKED
+  - NORMAL_QUERY → forward
+end note
+
+note right of D
+  **Database Response:**
+  - NORMAL_QUERY → OK
+  - BLOCKED → OK
+  - SQL_INJECTION_PAYLOAD → COMPROMISED
+end note
+
+@enduml</content>
+<parameter name="filePath">c:\Users\HP\OneDrive\Desktop\Assi\MasterIngenierieLogicielle\Semestre3\Simulation et modelisation\MartyDavid\Projet_DEVS\examples\InjectionSQL-DEVS\architecture_diagram.puml

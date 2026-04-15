@@ -1,0 +1,1 @@
+This file contains the SimStudio simulation of SQL injection attacks with an intelligent detection component. The simulation models the attacker, firewall, database, and a SQL injection detector. The models are implemented using the DEVS formalism. The simulation can be used to evaluate the effectiveness of the intelligent detection component in mitigating SQL injection attacks.

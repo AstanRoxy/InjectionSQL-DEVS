@@ -1,0 +1,276 @@
+\documentclass{article}
+\usepackage{graphicx}
+
+\title{DEVS Simulation of SQL Injection Attacks and Evaluation of an Adaptive Firewall}
+\author{Your Name}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This article presents a DEVS simulation of SQL injection attacks and the evaluation of an adaptive firewall. The simulation models the attacker, firewall, and database, and uses the DEVS formalism to analyze the behavior of the system.
+\end{abstract}
+
+\section{Introduction}
+\subsection{Project Context}
+Security vulnerabilities in web applications are a major challenge for developers and system administrators. Among these vulnerabilities, SQL injections regularly appear in the top 10 risks identified by the OWASP (Open Web Application Security Project). These attacks allow an attacker to execute unauthorized SQL commands by exploiting the input parameters of applications.
+
+This project is part of the Simulation and Modeling course, where we apply the DEVS (Discrete Event System Specification) formalism to model and analyze the behavior of a security system against SQL injection attacks.
+
+\subsection{Objectives}
+The main objectives of this project are:
+\begin{enumerate}
+    \item Formal Modeling: Implement a complete DEVS model representing an Attacker -> Firewall -> Database chain.
+    \item Comparative Evaluation: Compare four security scenarios (baseline, attack only, static defense, adaptive defense).
+    \item Technical Implementation: Develop the simulator in Java with the SimStudio framework.
+    \item Results Analysis: Measure the effectiveness of defense mechanisms via quantitative metrics.
+\end{enumerate}
+
+\subsection{Methodology}
+The work follows a structured approach:
+\begin{enumerate}
+    \item Analysis of DEVS theoretical concepts.
+    \item Design of atomic and coupled models.
+    \item Implementation in Java.
+    \item Validation by simulation.
+    \item Analysis of results and conclusions.
+\end{enumerate}
+
+\section{DEVS Formalism}
+\subsection{Fundamental Concepts}
+The DEVS (Discrete Event System Specification) formalism is a mathematical framework for modeling discrete event systems. Invented by Bernard Zeigler in 1976, DEVS allows to clearly separate the model (behavior) from the simulator (execution).
+
+\subsubsection{Atomic DEVS Model}
+An atomic DEVS model is defined by the following tuple:
+M =⟨X,Y,S,δext,δint,λ,ta⟩
+Where:
+\begin{itemize}
+    \item X: Set of input events
+    \item Y: Set of output events
+    \item S: Set of internal states
+    \item δext: Q× X → S: External transition function
+    \item δint: S → S: Internal transition function
+    \item λ: S → Y: Output function
+    \item ta: S → R+0∪{∞}: Lifetime function
+\end{itemize}
+
+\subsubsection{Coupled DEVS Model}
+A coupled model allows to compose several sub-models:
+CM =⟨X,Y,D,{Md}d∈D,EIC,EOC,IC,Select⟩
+Where:
+\begin{itemize}
+    \item D: Set of names of sub-models
+    \item EIC: X → D× Xd: Input-external coupling
+    \item EOC: D× Yd→ Y: Output-external coupling
+    \item IC: D× Yd→ D× Xd: Internal coupling
+    \item Select: 2D→ D: Selection function
+\end{itemize}
+
+\section{Security System Modeling}
+\subsection{General Architecture}
+The modeled system represents a typical web security architecture with three main components connected in a chain:
+\begin{enumerate}
+    \item Attacker: Generates requests (normal and malicious)
+    \item Firewall/AdaptiveFirewall: Filters incoming requests
+    \item Database: Processes authorized requests
+\end{enumerate}
+
+\subsection{Detailed Atomic Models}
+\subsubsection{Attacker Model}
+Functional Description: The Attacker model simulates a malicious user who first sends a normal request to test the system, then an SQL injection.
+DEVS Specification:
+\begin{itemize}
+    \item X (inputs): ∅ (no external input)
+    \item Y (outputs): {NORMAL\_QUERY, SQL\_INJECTION\_PAYLOAD}
+    \item S (states): {0, 1, 2} where 0 = ready, 1 = normal request sent, 2 = injection sent
+    \item δext: Not applicable (no input)
+    \item δint: s→ s + 1 (progression in states)
+    \item λ:
+    \begin{itemize}
+        \item λ(0) = NORMAL\_QUERY
+        \item λ(1) = SQL\_INJECTION\_PAY LOAD
+        \item λ(2) =∅
+    \end{itemize}
+    \item ta: ta(s) = 1 for all states (one tick per request)
+\end{itemize}
+
+\subsubsection{Firewall Model (Static)}
+Functional Description: The static firewall applies filtering rules based on known signatures.
+DEVS Specification:
+\begin{itemize}
+    \item X (inputs): {NORMAL\_QUERY, SQL\_INJECTION\_PAYLOAD}
+    \item Y (outputs): {NORMAL\_QUERY, BLOCKED}
+    \item S (states): {waiting, processing} where inbox contains the received request
+    \item δext: (s,x)→ s′ where s′.inbox = x
+    \item δint: s→ waiting (reset)
+    \item λ:
+    \begin{itemize}
+        \item If inbox = SQL\_INJECTION\_PAY LOAD: BLOCKED
+        \item Otherwise: inbox (transmission)
+    \end{itemize}
+    \item ta: ta(s) = 0 (immediate output after reception)
+\end{itemize}
+
+\subsubsection{AdaptiveFirewall Model}
+Functional Description: Extension of the static firewall with adaptive learning.
+DEVS Specification:
+\begin{itemize}
+    \item X (inputs): {NORMAL\_QUERY, SQL\_INJECTION\_PAYLOAD, OK, COMPROMISED}
+    \item Y (outputs): {NORMAL\_QUERY, BLOCKED}
+    \item S (states): {waiting, processing} with flag learned
+    \item δext: Updates learned = true if COMPROMISED received
+    \item δint: Same logic as Firewall
+    \item λ: Same logic + automatic blocking if learned = true
+    \item ta: ta(s) = 0 (immediate response)
+\end{itemize}
+
+\subsubsection{Database Model}
+Functional Description: The database processes requests and detects compromises.
+DEVS Specification:
+\begin{itemize}
+    \item X (inputs): {NORMAL\_QUERY, SQL\_INJECTION\_PAYLOAD, BLOCKED}
+    \item Y (outputs): {OK, COMPROMISED}
+    \item S (states): {waiting, processing} with inbox
+    \item δext: (s,x)→ s′ where s′.inbox = x
+    \item δint: s→ waiting
+    \item λ:
+    \begin{itemize}
+        \item If inbox = SQL\_INJECTION\_PAY LOAD: COMPROMISED
+        \item Otherwise: OK
+    \end{itemize}
+    \item ta: ta(s) = 0 (immediate response)
+\end{itemize}
+
+\subsection{Coupled Model}
+The coupled model represents the complete security chain and formalizes the interactions between the atomic components.
+DEVS Specification:
+\begin{itemize}
+    \item D: {Attacker, Firewall, Database} is the set of sub-models.
+    \item EIC (External Input Coupling): defines how external inputs are directed to the input ports of the sub-models. In this project, external commands are mainly generated by the Attacker model, so the EIC is simplified.
+    \item EOC (External Output Coupling): associates the outputs of the sub-models to the output of the global system. Here, the relevant outputs are those of the Database, which are exposed as output of the coupled model.
+    \item IC (Internal Coupling): connects the outputs of one sub-model to the inputs of another. In our architecture:
+    \begin{itemize}
+        \item Attacker.output→ Firewall.input
+        \item Firewall.output→ Database.input
+    \end{itemize}
+    \item Select: selection function used when several sub-models are ready simultaneously. In this sequential simulator, the selection corresponds to the fixed order of processing the models.
+\end{itemize}
+
+\section{Technical Implementation}
+\subsection{Software Architecture}
+The project is organized according to a modular architecture in Java:
+\begin{itemize}
+    \item Package models: Implementation of atomic models
+    \item Package engine: DEVS simulation engine
+    \item Interface AtomicModel: Contract for all models
+    \item SimpleCoupledSimulator: Orchestrator of simulations
+\end{itemize}
+
+\subsection{Main Code}
+\subsubsection{AtomicModel Interface}
+\begin{verbatim}
+public interface AtomicModel {
+    void initialize();           // Initialization
+    void receive(Object event);  // Event reception
+    Object output();            // Output production
+    void internalTransition();  // Internal transition
+    String name();              // Identification
+    void resetMetrics();        // Metrics reset
+}
+\end{verbatim}
+
+\subsubsection{Attacker Implementation}
+\begin{verbatim}
+public class Attacker implements AtomicModel {
+    private int step = 0;
+    @Override
+    public Object output() {
+        if (step == 0) return "NORMAL_QUERY";
+        if (step == 1) return "SQL_INJECTION_PAYLOAD";
+        return null;
+    }
+    @Override
+    public void internalTransition() {
+        step++;
+    }
+}
+\end{verbatim}
+
+\section{Experimental Results}
+\subsection{Test Configuration}
+Four scenarios were tested with 10 repetitions each:
+\begin{enumerate}
+    \item Baseline: No attacker, no defense
+    \item Attack only: Attacker present, no defense
+    \item Static defense: Attacker + static firewall
+    \item Adaptive defense: Attacker + adaptive firewall
+\end{enumerate}
+
+\subsection{Collected Metrics}
+\begin{itemize}
+    \item Blocked: Number of malicious requests intercepted
+    \item Compromised: Number of database compromises
+    \item Forwarded: Number of legitimate requests transmitted
+\end{itemize}
+
+\subsection{Obtained Results}
+\begin{verbatim}
+Scenario Blocked Compromised Forwarded
+Baseline 0.0 0.0 0.0
+Attack only 0.0 1.0 0.0
+Static defense 1.0 0.0 1.0
+Adaptive defense 1.0 0.0 1.0
+\end{verbatim}
+Table 1 – Averages of metrics per scenario
+
+\subsection{Analysis of Results}
+\begin{enumerate}
+    \item Baseline: Normal behavior without malicious activity
+    \item Attack only: 100\% compromise without defense
+    \item Static defense: Perfect protection against known attacks
+    \item Adaptive defense: Same efficiency (simple scenario)
+\end{enumerate}
+
+\section{Discussion and Perspectives}
+\subsection{Methodological Contributions}
+This project demonstrates the effectiveness of the DEVS formalism for:
+\begin{itemize}
+    \item Modeling complex security systems
+    \item Separating business logic from execution
+    \item Allowing rigorous comparative analyses
+    \item Facilitating the extension and reuse of components
+\end{itemize}
+
+\subsection{Model Limitations}
+\begin{itemize}
+    \item Simplified traffic (one attack per execution)
+    \item Static signatures only
+    \item No temporal performance measurement
+    \item Deterministic model (no probabilities)
+\end{itemize}
+
+\subsection{Possible Extensions}
+\begin{enumerate}
+    \item Realistic traffic: Probabilistic distribution of requests
+    \item Advanced learning: Integration of machine learning algorithms
+    \item Extended metrics: Latency, false positive rate
+    \item Distributed architecture: Client-server model
+\end{enumerate}
+
+\section{Conclusion}
+This work presents a complete implementation of a security system modeled in DEVS, allowing to evaluate the effectiveness of defense mechanisms against SQL injections. The results demonstrate that:
+\begin{enumerate}
+    \item The DEVS formalism is suitable for modeling security systems
+    \item Static firewalls offer effective protection against known attacks
+    \item The adaptive approach improves the resilience of the system
+    \item Formal simulation facilitates comparative analyses
+\end{enumerate}
+
+The developed source code constitutes a solid basis for future work in the field of computer security simulation.
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

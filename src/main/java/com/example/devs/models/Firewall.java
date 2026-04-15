@@ -22,11 +22,11 @@ public class Firewall implements AtomicModel {
   public Object output() {
     if (inbox == null) return null;
     if ("SQL_INJECTION_PAYLOAD".equals(inbox)) {
-      // bloque l'attaque
+      // bloque l'attaque et incrémente la métrique
       metrics.blockedCount++;
       return "BLOCKED";
     } else {
-      // transmet la requête normale
+      // transmet la requête normale et incrémente forwardedCount
       metrics.forwardedCount++;
       return inbox;
     }

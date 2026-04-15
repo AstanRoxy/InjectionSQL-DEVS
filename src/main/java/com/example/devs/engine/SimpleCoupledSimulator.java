@@ -2,16 +2,21 @@ package com.example.devs.engine;
 
 import java.util.List;
 
+import com.example.devs.models.SQLInjectionDetector;
+
 /**
  * Simulateur pas à pas pour une chaîne de modèles (ordre séquentiel).
  */
 public class SimpleCoupledSimulator {
   private final List<AtomicModel> chain;
   private final Metrics metrics;
+  private final SQLInjectionDetector sqlInjectionDetector;
 
   public SimpleCoupledSimulator(List<AtomicModel> chain, Metrics metrics) {
     this.chain = chain;
     this.metrics = metrics;
+    this.sqlInjectionDetector = new SQLInjectionDetector("SQLInjectionDetector");
+    this.chain.add(sqlInjectionDetector);
   }
 
   public void initialize() {
@@ -30,11 +35,19 @@ public class SimpleCoupledSimulator {
         AtomicModel m = chain.get(i);
         // si on a un événement en entrée, on le livre
         if (carry != null) {
-          System.out.println(m.name() + " receives: " + carry);
-          m.receive(carry);
-        }
-        // produire sortie
-        Object out = m.output();
+           System.out.println(m.name() + " receives: " + carry);
+           m.receive(carry);
+         }
+
+         // Pass inputs to the detector model
+         if (m.name().equals("Firewall")) {
+            sqlInjectionDetector.receive(m.output());
+         } else if (m.name().equals("Database")) {
+            sqlInjectionDetector.receive(m.output());
+         }
+
+         // produire sortie
+         Object out = m.output();
         if (out != null) {
           System.out.println(m.name() + " outputs: " + out);
           // si c'est le firewall qui bloque, on met à jour métriques
@@ -45,6 +58,12 @@ public class SimpleCoupledSimulator {
           if (m.name().equals("Database") && "COMPROMISED".equals(out)) {
             metrics.compromisedCount++;
           }
+
+          // Update metrics based on the detector's output
+          if (m.name().equals("SQLInjectionDetector") && "DETECTED".equals(out)) {
+            metrics.blockedCount++; // Or a new metric
+          }
+
           carry = out;
         } else {
           carry = null;
